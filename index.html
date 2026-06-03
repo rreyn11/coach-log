@@ -62,6 +62,14 @@ select { width: auto; padding: 8px 12px; font-size: 14px; }
 .entry-delete { margin-top: 10px; background: none; border: none; color: var(--red); font-size: 12px; cursor: pointer; opacity: 0.7; }
 .entry-delete:hover { opacity: 1; }
 .empty-state { text-align: center; padding: 40px; color: var(--text-secondary); }
+.btn-export { background: var(--surface); border: 1px solid var(--accent); color: var(--accent); padding: 8px 14px; border-radius: var(--radius); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-export:hover { background: rgba(0,122,255,0.15); }
+.btn-export.copied { background: var(--green); border-color: var(--green); color: white; }
+.recap-preview { margin-top: 16px; background: var(--surface); border-radius: var(--radius); padding: 16px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; color: var(--text); min-height: 100px; }
+.recap-header { font-weight: 700; font-size: 16px; margin-bottom: 12px; color: var(--accent); }
+.recap-stat { color: var(--text-secondary); margin-bottom: 12px; font-size: 13px; }
+.recap-entry { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--surface-hover); }
+.recap-entry:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
   </style>
 </head>
 <body>
@@ -73,6 +81,7 @@ select { width: auto; padding: 8px 12px; font-size: 14px; }
     <div class="tabs">
       <button class="tab active" data-tab="log">Log Entry</button>
       <button class="tab" data-tab="history">History</button>
+      <button class="tab" data-tab="recap">Recap</button>
     </div>
     <section id="logTab" class="tab-content active">
       <form id="coachForm">
@@ -109,6 +118,18 @@ select { width: auto; padding: 8px 12px; font-size: 14px; }
         </select>
       </div>
       <div id="historyList" class="history-list"></div>
+    </section>
+    <section id="recapTab" class="tab-content">
+      <div class="filter-row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="recapFilter">
+          <option value="today">Today</option>
+          <option value="week">This Week</option>
+          <option value="month">This Month</option>
+        </select>
+        <button class="btn-export" id="shareBtn">Share Recap</button>
+        <button class="btn-export" id="copyBtn">Copy to Clipboard</button>
+      </div>
+      <div id="recapPreview" class="recap-preview"></div>
     </section>
   </div>
 <script>
@@ -217,6 +238,7 @@ document.querySelectorAll('.tab').forEach(tab=>{tab.addEventListener('click',()=
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
   tab.classList.add('active');document.getElementById(tab.dataset.tab+'Tab').classList.add('active');
   if(tab.dataset.tab==='history')renderHistory();
+  if(tab.dataset.tab==='recap')renderRecap();
 });});
 // Generate
 document.getElementById('generateBtn').addEventListener('click',function(){
@@ -255,6 +277,69 @@ async function loadTeamMembers(){
 }
 loadTeamMembers();
 refreshEntries();
+
+// === Recap ===
+function getRecapEntries(range) {
+  const now = new Date();
+  if (range === 'today') {
+    const start = new Date(now); start.setHours(0,0,0,0);
+    return entriesCache.filter(e => new Date(e.date) >= start);
+  } else if (range === 'week') {
+    return getThisWeekEntries();
+  } else {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    return entriesCache.filter(e => new Date(e.date) >= start);
+  }
+}
+function buildRecapText(range) {
+  const entries = getRecapEntries(range);
+  const labels = {today:'Today',week:'This Week',month:'This Month'};
+  let text = 'Coaching Recap — ' + labels[range] + '\n';
+  text += entries.length + ' conversation' + (entries.length===1?'':'s') + '\n';
+  const names = [...new Set(entries.map(e=>e.name))];
+  text += 'Team members: ' + (names.length > 0 ? names.join(', ') : 'None') + '\n\n';
+  if (entries.length === 0) { text += 'No coaching entries for this period.'; return text; }
+  entries.sort((a,b) => new Date(b.date) - new Date(a.date));
+  entries.forEach(e => {
+    text += '• ' + e.name + ' (' + formatDate(e.date) + ')\n';
+    text += '  Topic: ' + e.topic + '\n';
+    text += '  ' + e.summary + '\n\n';
+  });
+  return text.trim();
+}
+function renderRecap() {
+  const range = document.getElementById('recapFilter').value;
+  const entries = getRecapEntries(range);
+  const names = [...new Set(entries.map(e=>e.name))];
+  const labels = {today:'Today',week:'This Week',month:'This Month'};
+  let html = '<div class="recap-header">Coaching Recap — '+labels[range]+'</div>';
+  html += '<div class="recap-stat">'+entries.length+' conversation'+(entries.length===1?'':'s')+' · Team members: '+(names.length>0?names.join(', '):'None')+'</div>';
+  if (entries.length === 0) { html += '<div class="empty-state">No entries for this period</div>'; }
+  else {
+    entries.sort((a,b) => new Date(b.date) - new Date(a.date));
+    entries.forEach(e => {
+      html += '<div class="recap-entry"><strong>'+escapeHtml(e.name)+'</strong> · '+formatDate(e.date)+'<br><span style="color:var(--accent)">'+escapeHtml(e.topic)+'</span><br>'+escapeHtml(e.summary)+'</div>';
+    });
+  }
+  document.getElementById('recapPreview').innerHTML = html;
+}
+document.getElementById('recapFilter').addEventListener('change', renderRecap);
+document.getElementById('shareBtn').addEventListener('click', function() {
+  const text = buildRecapText(document.getElementById('recapFilter').value);
+  if (navigator.share) {
+    navigator.share({title:'Coaching Recap',text:text}).catch(()=>{});
+  } else {
+    window.location.href = 'mailto:?subject=Coaching Recap&body=' + encodeURIComponent(text);
+  }
+});
+document.getElementById('copyBtn').addEventListener('click', function() {
+  const text = buildRecapText(document.getElementById('recapFilter').value);
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy to Clipboard'; btn.classList.remove('copied'); }, 1500);
+  });
+});
 </script>
 </body>
 </html>
