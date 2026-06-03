@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Coach Log">
+  <link rel="manifest" href="data:application/json,%7B%22name%22%3A%22Coach%20Log%22%2C%22short_name%22%3A%22Coach%20Log%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231C1C1E%22%2C%22theme_color%22%3A%22%231C1C1E%22%7D">
+  <title>Coach Log</title>
+  <style>
+:root {
+  --bg: #1C1C1E;
+  --surface: #2C2C2E;
+  --surface-hover: #3A3A3C;
+  --text: #F5F5F7;
+  --text-secondary: #98989D;
+  --accent: #007AFF;
+  --green: #34C759;
+  --orange: #FF9500;
+  --red: #FF3B30;
+  --radius: 12px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px;
+}
+.app { max-width: 600px; margin: 0 auto; }
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+h1 { font-size: 28px; font-weight: 700; }
+.week-counter { background: var(--surface); padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; }
+.week-counter.on-track { color: var(--green); }
+.week-counter.behind { color: var(--orange); }
+.week-counter.critical { color: var(--red); }
+.tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+.tab { background: var(--surface); border: none; color: var(--text-secondary); padding: 10px 20px; border-radius: var(--radius); font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+.tab.active { background: var(--accent); color: white; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.field { margin-bottom: 16px; }
+label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.hint { font-weight: 400; text-transform: none; letter-spacing: 0; opacity: 0.7; }
+input, textarea, select { width: 100%; background: var(--surface); border: 1px solid transparent; border-radius: var(--radius); padding: 12px 16px; color: var(--text); font-size: 16px; font-family: inherit; transition: border-color 0.2s; }
+input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+textarea { resize: vertical; }
+.btn-generate { width: 100%; padding: 14px 20px; background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius); color: var(--accent); font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-top: 8px; }
+.btn-generate:hover { background: rgba(0, 122, 255, 0.15); }
+.generated-section { margin-top: 20px; }
+.generated-section.hidden { display: none; }
+.btn-save { width: 100%; padding: 14px 20px; margin-top: 16px; background: var(--accent); border: none; border-radius: var(--radius); color: white; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-save:hover { opacity: 0.85; }
+.filter-row { margin-bottom: 16px; }
+select { width: auto; padding: 8px 12px; font-size: 14px; }
+.history-list { display: flex; flex-direction: column; gap: 12px; }
+.entry-card { background: var(--surface); border-radius: var(--radius); padding: 16px; }
+.entry-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.entry-name { font-weight: 600; font-size: 16px; }
+.entry-date { font-size: 13px; color: var(--text-secondary); }
+.entry-topic { font-size: 14px; color: var(--accent); margin-bottom: 6px; }
+.entry-summary { font-size: 14px; color: var(--text-secondary); line-height: 1.4; }
+.entry-delete { margin-top: 10px; background: none; border: none; color: var(--red); font-size: 12px; cursor: pointer; opacity: 0.7; }
+.entry-delete:hover { opacity: 1; }
+.empty-state { text-align: center; padding: 40px; color: var(--text-secondary); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Coach Log</h1>
+      <div class="week-counter" id="weekCounter">0/5 this week</div>
+    </header>
+    <div class="tabs">
+      <button class="tab active" data-tab="log">Log Entry</button>
+      <button class="tab" data-tab="history">History</button>
+    </div>
+    <section id="logTab" class="tab-content active">
+      <form id="coachForm">
+        <div class="field">
+          <label for="memberName">Team Member</label>
+          <select id="memberName" required>
+            <option value="">Select team member...</option>
+            <option>Albie</option>
+            <option>Ashlynn</option>
+            <option>Barbara</option>
+            <option>Ben M</option>
+            <option>Ben W</option>
+            <option>Bill</option>
+            <option>Bohdan</option>
+            <option>Caitlin</option>
+            <option>Chris</option>
+            <option>Christian</option>
+            <option>Chuck</option>
+            <option>David Lee</option>
+            <option>Edgardo</option>
+            <option>Edward</option>
+            <option>Emily</option>
+            <option>Erik</option>
+            <option>Evan</option>
+            <option>Geren</option>
+            <option>Gerry</option>
+            <option>Griffin</option>
+            <option>Gwen</option>
+            <option>Henry</option>
+            <option>Jacqui</option>
+            <option>JAG</option>
+            <option>Jaydha</option>
+            <option>Jeff J</option>
+            <option>Jeff S</option>
+            <option>Jenni</option>
+            <option>Jesus</option>
+            <option>Jim</option>
+            <option>Joe</option>
+            <option>Joscelynn</option>
+            <option>Joshua</option>
+            <option>Ken</option>
+            <option>Kenna</option>
+            <option>Kurt</option>
+            <option>Kyle</option>
+            <option>Laura</option>
+            <option>Leo</option>
+            <option>Matheus</option>
+            <option>Michael</option>
+            <option>Mike B</option>
+            <option>Mike T</option>
+            <option>Neha</option>
+            <option>Nikki</option>
+            <option>Paschal</option>
+            <option>Patrick</option>
+            <option>Phil</option>
+            <option>Randy</option>
+            <option>Ray</option>
+            <option>Rita</option>
+            <option>Rob</option>
+            <option>Rod</option>
+            <option>Rogerio</option>
+            <option>Roxanne</option>
+            <option>Sara</option>
+            <option>Sharon</option>
+            <option>T</option>
+            <option>Tiffany</option>
+            <option>Timothy</option>
+            <option>Tom</option>
+            <option>Wasif</option>
+            <option>Zinah</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="roughNotes">What did you talk about?</label>
+          <textarea id="roughNotes" rows="3" placeholder="long breaks, attendance, agreed on phone alarm..."></textarea>
+        </div>
+        <button type="button" class="btn-generate" id="generateBtn">Generate Topic and Summary</button>
+        <div id="generatedSection" class="generated-section hidden">
+          <div class="field">
+            <label for="topic">Topic</label>
+            <input type="text" id="topic">
+          </div>
+          <div class="field">
+            <label for="summary">Summary <span class="hint">(edit if needed)</span></label>
+            <textarea id="summary" rows="4"></textarea>
+          </div>
+          <button type="submit" class="btn-save">Save Entry</button>
+        </div>
+      </form>
+    </section>
+    <section id="historyTab" class="tab-content">
+      <div class="filter-row">
+        <select id="weekFilter">
+          <option value="current">This Week</option>
+          <option value="last">Last Week</option>
+          <option value="all">All Time</option>
+        </select>
+      </div>
+      <div id="historyList" class="history-list"></div>
+    </section>
+  </div>
+<script>
+// === Supabase client ===
+const SUPABASE_URL = 'https://nocbnwzdiuwdykehnbal.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vY2Jud3pkaXV3ZHlrZWhuYmFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5OTk2NDAsImV4cCI6MjA5MzU3NTY0MH0.f1KP8iQF5oP8c3J-4Uf4VKm4oZKkSpgCGz4QdPOSjPo';
+
+async function supabaseRequest(method, path, body) {
+  const opts = { method, headers: {
+    'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY,
+    'Content-Type': 'application/json',
+    'Prefer': method === 'POST' ? 'return=representation' : undefined
+  }};
+  if (body) opts.body = JSON.stringify(body);
+  Object.keys(opts.headers).forEach(k => { if (opts.headers[k] === undefined) delete opts.headers[k]; });
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, opts);
+  if (!res.ok) { const err = await res.text(); throw new Error(err); }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+async function getEntries() {
+  try { return (await supabaseRequest('GET', 'coaching_entries?order=date.desc')) || []; }
+  catch (e) { console.error('Supabase fetch failed, using localStorage fallback:', e); return JSON.parse(localStorage.getItem('coach_log_entries') || '[]'); }
+}
+async function saveEntry(entry) {
+  try { await supabaseRequest('POST', 'coaching_entries', entry); }
+  catch (e) { console.error('Supabase save failed, saving to localStorage:', e); const entries = JSON.parse(localStorage.getItem('coach_log_entries') || '[]'); entries.push(entry); localStorage.setItem('coach_log_entries', JSON.stringify(entries)); }
+}
+async function deleteEntryById(id) {
+  try { await supabaseRequest('DELETE', 'coaching_entries?id=eq.' + id); } catch (e) { console.error('Delete failed:', e); }
+}
+
+// === Templates engine ===
+const TOPIC_MAP = {
+  attendance:{topic:'Attendance and Reliability',category:'accountability'},late:{topic:'Punctuality and Time Management',category:'accountability'},lates:{topic:'Punctuality and Time Management',category:'accountability'},tardy:{topic:'Punctuality and Time Management',category:'accountability'},callout:{topic:'Attendance Accountability',category:'accountability'},'call out':{topic:'Attendance Accountability',category:'accountability'},'no show':{topic:'Attendance Accountability',category:'accountability'},breaks:{topic:'Break Adherence',category:'accountability'},'long breaks':{topic:'Break Timeliness and Self-Management',category:'accountability'},break:{topic:'Break Adherence',category:'accountability'},schedule:{topic:'Schedule Adherence',category:'accountability'},time:{topic:'Time Management',category:'accountability'},phone:{topic:'Device Policy Compliance',category:'accountability'},uniform:{topic:'Dress Code and Presentation',category:'accountability'},dress:{topic:'Dress Code and Presentation',category:'accountability'},customer:{topic:'Customer Experience Focus',category:'customer'},nps:{topic:'Net Promoter and Customer Advocacy',category:'customer'},service:{topic:'Service Recovery and Customer Care',category:'customer'},recovery:{topic:'Service Recovery',category:'customer'},feedback:{topic:'Customer Feedback Review',category:'customer'},detractor:{topic:'Detractor Recovery Coaching',category:'customer'},sale:{topic:'Sales Approach and Engagement',category:'performance'},sales:{topic:'Sales Approach and Engagement',category:'performance'},goal:{topic:'Goal Progress Check-In',category:'development'},goals:{topic:'Goal Progress Check-In',category:'development'},career:{topic:'Career Development',category:'development'},growth:{topic:'Professional Growth',category:'development'},promotion:{topic:'Career Progression Planning',category:'development'},skill:{topic:'Skill Development',category:'development'},training:{topic:'Training and Development',category:'development'},strength:{topic:'Strengths Recognition',category:'development'},win:{topic:'Recognition and Momentum',category:'development'},great:{topic:'Recognition and Momentum',category:'development'},awesome:{topic:'Recognition and Positive Reinforcement',category:'development'},team:{topic:'Team Collaboration',category:'engagement'},workload:{topic:'Workload and Capacity Check-In',category:'engagement'},stress:{topic:'Wellbeing and Workload Balance',category:'engagement'},morale:{topic:'Engagement and Morale',category:'engagement'},motivation:{topic:'Motivation and Engagement',category:'engagement'},conflict:{topic:'Interpersonal Communication',category:'engagement'},communication:{topic:'Communication Effectiveness',category:'engagement'},attitude:{topic:'Professional Conduct and Attitude',category:'accountability'},behavior:{topic:'Workplace Behavior',category:'accountability'},quality:{topic:'Work Quality Standards',category:'performance'},speed:{topic:'Efficiency and Throughput',category:'performance'},productivity:{topic:'Productivity and Focus',category:'performance'},metrics:{topic:'Performance Metrics Review',category:'performance'},followup:{topic:'Follow-Up on Prior Commitment',category:'accountability'},'follow up':{topic:'Follow-Up on Prior Commitment',category:'accountability'},checkin:{topic:'General Check-In',category:'engagement'},'check in':{topic:'General Check-In',category:'engagement'}
+};
+const SUMMARY_TEMPLATES = {
+  accountability:['Spoke with {name} regarding {keywords}. Discussed expectations around {area} and the impact on the team. {name} acknowledged the feedback{agreement}. Will follow up {followup}.','Had a coaching conversation with {name} about {keywords}. Reviewed current patterns and set clear expectations for improvement{agreement}. Plan to check back {followup}.'],
+  customer:['Discussed {keywords} with {name}. Reviewed recent customer interactions and identified opportunities to strengthen the experience{agreement}. Will revisit {followup}.','Coached {name} on {keywords}. Talked through specific examples and what a stronger approach looks like{agreement}. Following up {followup}.'],
+  development:['Connected with {name} about {keywords}. Discussed progress and identified next steps for continued growth{agreement}. Will check in {followup}.','Had a development conversation with {name} focused on {keywords}. Recognized recent progress and explored what to focus on next{agreement}. Revisiting {followup}.'],
+  engagement:['Checked in with {name} regarding {keywords}. Listened to their perspective and discussed how to support them going forward{agreement}. Following up {followup}.','Connected with {name} on {keywords}. Gauged how they are feeling and explored ways to keep momentum positive{agreement}. Will revisit {followup}.'],
+  performance:['Discussed {keywords} with {name}. Reviewed current performance and identified specific areas to focus on for improvement{agreement}. Will follow up {followup}.','Coached {name} on {keywords}. Looked at recent results and set targeted goals for the near term{agreement}. Checking back {followup}.']
+};
+function detectKeywords(text) {
+  const lower = text.toLowerCase(), matches = [];
+  const sortedKeys = Object.keys(TOPIC_MAP).sort((a,b)=>b.length-a.length);
+  for (const key of sortedKeys) { if (lower.includes(key)) matches.push({key,...TOPIC_MAP[key]}); }
+  return matches;
+}
+function generateTopic(notes) {
+  const m = detectKeywords(notes);
+  if (m.length===0) return 'Coaching Conversation';
+  if (m.length===1) return m[0].topic;
+  return m[0].topic+' and '+m[1].topic.split(' ').slice(-1)[0];
+}
+function generateSummary(name, notes) {
+  const matches = detectKeywords(notes);
+  const category = matches.length>0?matches[0].category:'engagement';
+  const templates = SUMMARY_TEMPLATES[category];
+  const template = templates[Math.floor(Math.random()*templates.length)];
+  const lower = notes.toLowerCase();
+  let agreement = '';
+  if (lower.includes('agreed')||lower.includes('commit')||lower.includes('will')) {
+    const idx = Math.max(lower.indexOf('agreed'),lower.indexOf('commit'),lower.indexOf('will'));
+    if (idx>-1) { const snippet=notes.substring(idx).split(/[.,!]/)[0].trim(); if(snippet.length>5&&snippet.length<100) agreement=' — '+snippet; }
+  }
+  if (!agreement) agreement=' and committed to improvement';
+  const keywords = matches.length>0?matches.slice(0,2).map(m=>m.key).join(' and '):notes.substring(0,30).trim();
+  return template.replace(/{name}/g,capitalize(name)).replace(/{keywords}/g,keywords).replace(/{area}/g,matches.length>0?matches[0].key:'expectations').replace(/{agreement}/g,agreement).replace(/{followup}/g,'next week');
+}
+function capitalize(str) { return str.charAt(0).toUpperCase()+str.slice(1); }
+
+// === App logic ===
+const STORAGE_KEY='coach_log_entries';
+let entriesCache=[];
+function getWeekStart(date) {
+  const d=new Date(date); const day=d.getDay(); const diff=d.getDate()-day+(day===0?-6:1);
+  const monday=new Date(d.setDate(diff)); monday.setHours(0,0,0,0); return monday;
+}
+function getThisWeekEntries() { const ws=getWeekStart(new Date()); return entriesCache.filter(e=>new Date(e.date)>=ws); }
+function updateCounter() {
+  const count=getThisWeekEntries().length; const el=document.getElementById('weekCounter');
+  el.textContent=count+'/5 this week'; el.className='week-counter';
+  if(count>=5)el.classList.add('on-track');else if(count>=3)el.classList.add('behind');else el.classList.add('critical');
+}
+function formatDate(ds) { return new Date(ds).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}); }
+function escapeHtml(text) { if(!text)return''; const d=document.createElement('div'); d.textContent=text; return d.innerHTML; }
+function renderHistory() {
+  const filter=document.getElementById('weekFilter').value;
+  const now=new Date(),thisWS=getWeekStart(now),lastWS=new Date(thisWS); lastWS.setDate(lastWS.getDate()-7);
+  let filtered;
+  if(filter==='current') filtered=entriesCache.filter(e=>new Date(e.date)>=thisWS);
+  else if(filter==='last') filtered=entriesCache.filter(e=>{const d=new Date(e.date);return d>=lastWS&&d<thisWS;});
+  else filtered=entriesCache;
+  const list=document.getElementById('historyList');
+  if(filtered.length===0){list.innerHTML='<div class="empty-state">No entries yet</div>';return;}
+  filtered.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  list.innerHTML=filtered.map(entry=>'<div class="entry-card"><div class="entry-header"><span class="entry-name">'+escapeHtml(entry.name)+'</span><span class="entry-date">'+formatDate(entry.date)+'</span></div><div class="entry-topic">'+escapeHtml(entry.topic)+'</div><div class="entry-summary">'+escapeHtml(entry.summary)+'</div><button class="entry-delete" onclick="handleDelete(\''+entry.id+'\')">Delete</button></div>').join('');
+}
+async function handleDelete(id){if(!confirm('Delete this entry?'))return;await deleteEntryById(id);await refreshEntries();}
+async function refreshEntries(){entriesCache=await getEntries();updateCounter();renderHistory();}
+
+// Tabs
+document.querySelectorAll('.tab').forEach(tab=>{tab.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  tab.classList.add('active');document.getElementById(tab.dataset.tab+'Tab').classList.add('active');
+  if(tab.dataset.tab==='history')renderHistory();
+});});
+// Generate
+document.getElementById('generateBtn').addEventListener('click',function(){
+  const name=document.getElementById('memberName').value.trim();
+  const notes=document.getElementById('roughNotes').value.trim();
+  if(!name){alert('Enter a team member name');return;}
+  if(!notes){alert('Enter some rough notes');return;}
+  document.getElementById('topic').value=generateTopic(notes);
+  document.getElementById('summary').value=generateSummary(name,notes);
+  document.getElementById('generatedSection').classList.remove('hidden');
+});
+// Save
+document.getElementById('coachForm').addEventListener('submit',async function(e){
+  e.preventDefault();
+  const name=document.getElementById('memberName').value.trim();
+  const topic=document.getElementById('topic').value.trim();
+  const summary=document.getElementById('summary').value.trim();
+  if(!name||!topic||!summary)return;
+  const entry={id:crypto.randomUUID(),name,topic,summary,date:new Date().toISOString()};
+  const btn=document.querySelector('.btn-save'); btn.textContent='Saving...'; btn.disabled=true;
+  await saveEntry(entry);
+  document.getElementById('coachForm').reset();
+  document.getElementById('generatedSection').classList.add('hidden');
+  btn.textContent='Saved'; btn.style.background='#34C759'; btn.disabled=false;
+  setTimeout(()=>{btn.textContent='Save Entry';btn.style.background='';},1500);
+  await refreshEntries();
+});
+document.getElementById('weekFilter').addEventListener('change',renderHistory);
+refreshEntries();
+</script>
+</body>
+</html>
