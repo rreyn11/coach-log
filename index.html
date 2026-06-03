@@ -79,70 +79,7 @@ select { width: auto; padding: 8px 12px; font-size: 14px; }
         <div class="field">
           <label for="memberName">Team Member</label>
           <select id="memberName" required>
-            <option value="">Select team member...</option>
-            <option>Albie</option>
-            <option>Ashlynn</option>
-            <option>Barbara</option>
-            <option>Ben M</option>
-            <option>Ben W</option>
-            <option>Bill</option>
-            <option>Bohdan</option>
-            <option>Caitlin</option>
-            <option>Chris</option>
-            <option>Christian</option>
-            <option>Chuck</option>
-            <option>David Lee</option>
-            <option>Edgardo</option>
-            <option>Edward</option>
-            <option>Emily</option>
-            <option>Erik</option>
-            <option>Evan</option>
-            <option>Geren</option>
-            <option>Gerry</option>
-            <option>Griffin</option>
-            <option>Gwen</option>
-            <option>Henry</option>
-            <option>Jacqui</option>
-            <option>JAG</option>
-            <option>Jaydha</option>
-            <option>Jeff J</option>
-            <option>Jeff S</option>
-            <option>Jenni</option>
-            <option>Jesus</option>
-            <option>Jim</option>
-            <option>Joe</option>
-            <option>Joscelynn</option>
-            <option>Joshua</option>
-            <option>Ken</option>
-            <option>Kenna</option>
-            <option>Kurt</option>
-            <option>Kyle</option>
-            <option>Laura</option>
-            <option>Leo</option>
-            <option>Matheus</option>
-            <option>Michael</option>
-            <option>Mike B</option>
-            <option>Mike T</option>
-            <option>Neha</option>
-            <option>Nikki</option>
-            <option>Paschal</option>
-            <option>Patrick</option>
-            <option>Phil</option>
-            <option>Randy</option>
-            <option>Ray</option>
-            <option>Rita</option>
-            <option>Rob</option>
-            <option>Rod</option>
-            <option>Rogerio</option>
-            <option>Roxanne</option>
-            <option>Sara</option>
-            <option>Sharon</option>
-            <option>T</option>
-            <option>Tiffany</option>
-            <option>Timothy</option>
-            <option>Tom</option>
-            <option>Wasif</option>
-            <option>Zinah</option>
+            <option value="">Loading team...</option>
           </select>
         </div>
         <div class="field">
@@ -308,6 +245,15 @@ document.getElementById('coachForm').addEventListener('submit',async function(e)
   await refreshEntries();
 });
 document.getElementById('weekFilter').addEventListener('change',renderHistory);
+// Load team members from Supabase
+async function loadTeamMembers(){
+  const select=document.getElementById('memberName');
+  try{
+    const members=await supabaseRequest('GET','team_members?order=name.asc');
+    select.innerHTML='<option value="">Select team member...</option>'+members.map(m=>'<option>'+m.name+'</option>').join('');
+  }catch(e){console.error('Failed to load team:',e);select.innerHTML='<option value="">Error loading team</option>';}
+}
+loadTeamMembers();
 refreshEntries();
 </script>
 </body>
