@@ -70,6 +70,19 @@ select { width: auto; padding: 8px 12px; font-size: 14px; }
 .recap-stat { color: var(--text-secondary); margin-bottom: 12px; font-size: 13px; }
 .recap-entry { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--surface-hover); }
 .recap-entry:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.entry-notes { font-size: 13px; color: var(--text); margin-top: 6px; padding: 8px 10px; background: var(--bg); border-radius: 8px; line-height: 1.4; font-style: italic; }
+.entry-notes::before { content: 'Notes: '; font-style: normal; font-weight: 600; color: var(--text-secondary); }
+.roster-summary { margin-bottom: 16px; padding: 12px 16px; background: var(--surface); border-radius: var(--radius); font-size: 14px; color: var(--text-secondary); }
+.roster-summary strong { color: var(--text); }
+.roster-list { display: flex; flex-direction: column; gap: 8px; }
+.roster-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--surface); border-radius: var(--radius); }
+.roster-name { font-weight: 600; font-size: 15px; }
+.roster-date { font-size: 13px; color: var(--text-secondary); }
+.roster-coached { border-left: 3px solid var(--green); }
+.roster-not-coached { border-left: 3px solid var(--red); opacity: 0.8; }
+.roster-badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 10px; }
+.roster-badge.coached { background: rgba(52,199,89,0.15); color: var(--green); }
+.roster-badge.overdue { background: rgba(255,59,48,0.15); color: var(--red); }
   </style>
 </head>
 <body>
@@ -81,6 +94,7 @@ select { width: auto; padding: 8px 12px; font-size: 14px; }
     <div class="tabs">
       <button class="tab active" data-tab="log">Log Entry</button>
       <button class="tab" data-tab="history">History</button>
+      <button class="tab" data-tab="roster">Roster</button>
       <button class="tab" data-tab="recap">Recap</button>
     </div>
     <section id="logTab" class="tab-content active">
@@ -131,6 +145,10 @@ select { width: auto; padding: 8px 12px; font-size: 14px; }
       </div>
       <div id="recapPreview" class="recap-preview"></div>
     </section>
+    <section id="rosterTab" class="tab-content">
+      <div class="roster-summary" id="rosterSummary"></div>
+      <div id="rosterList" class="roster-list"></div>
+    </section>
   </div>
 <script>
 // === Supabase client ===
@@ -167,11 +185,31 @@ const TOPIC_MAP = {
   attendance:{topic:'Attendance and Reliability',category:'accountability'},late:{topic:'Punctuality and Time Management',category:'accountability'},lates:{topic:'Punctuality and Time Management',category:'accountability'},tardy:{topic:'Punctuality and Time Management',category:'accountability'},callout:{topic:'Attendance Accountability',category:'accountability'},'call out':{topic:'Attendance Accountability',category:'accountability'},'no show':{topic:'Attendance Accountability',category:'accountability'},breaks:{topic:'Break Adherence',category:'accountability'},'long breaks':{topic:'Break Timeliness and Self-Management',category:'accountability'},break:{topic:'Break Adherence',category:'accountability'},schedule:{topic:'Schedule Adherence',category:'accountability'},time:{topic:'Time Management',category:'accountability'},phone:{topic:'Device Policy Compliance',category:'accountability'},uniform:{topic:'Dress Code and Presentation',category:'accountability'},dress:{topic:'Dress Code and Presentation',category:'accountability'},customer:{topic:'Customer Experience Focus',category:'customer'},nps:{topic:'Net Promoter and Customer Advocacy',category:'customer'},service:{topic:'Service Recovery and Customer Care',category:'customer'},recovery:{topic:'Service Recovery',category:'customer'},feedback:{topic:'Customer Feedback Review',category:'customer'},detractor:{topic:'Detractor Recovery Coaching',category:'customer'},sale:{topic:'Sales Approach and Engagement',category:'performance'},sales:{topic:'Sales Approach and Engagement',category:'performance'},goal:{topic:'Goal Progress Check-In',category:'development'},goals:{topic:'Goal Progress Check-In',category:'development'},career:{topic:'Career Development',category:'development'},growth:{topic:'Professional Growth',category:'development'},promotion:{topic:'Career Progression Planning',category:'development'},skill:{topic:'Skill Development',category:'development'},training:{topic:'Training and Development',category:'development'},strength:{topic:'Strengths Recognition',category:'development'},win:{topic:'Recognition and Momentum',category:'development'},great:{topic:'Recognition and Momentum',category:'development'},awesome:{topic:'Recognition and Positive Reinforcement',category:'development'},team:{topic:'Team Collaboration',category:'engagement'},workload:{topic:'Workload and Capacity Check-In',category:'engagement'},stress:{topic:'Wellbeing and Workload Balance',category:'engagement'},morale:{topic:'Engagement and Morale',category:'engagement'},motivation:{topic:'Motivation and Engagement',category:'engagement'},conflict:{topic:'Interpersonal Communication',category:'engagement'},communication:{topic:'Communication Effectiveness',category:'engagement'},attitude:{topic:'Professional Conduct and Attitude',category:'accountability'},behavior:{topic:'Workplace Behavior',category:'accountability'},quality:{topic:'Work Quality Standards',category:'performance'},speed:{topic:'Efficiency and Throughput',category:'performance'},productivity:{topic:'Productivity and Focus',category:'performance'},metrics:{topic:'Performance Metrics Review',category:'performance'},followup:{topic:'Follow-Up on Prior Commitment',category:'accountability'},'follow up':{topic:'Follow-Up on Prior Commitment',category:'accountability'},checkin:{topic:'General Check-In',category:'engagement'},'check in':{topic:'General Check-In',category:'engagement'}
 };
 const SUMMARY_TEMPLATES = {
-  accountability:['Spoke with {name} regarding {keywords}. Discussed expectations around {area} and the impact on the team. {name} acknowledged the feedback{agreement}. Will follow up {followup}.','Had a coaching conversation with {name} about {keywords}. Reviewed current patterns and set clear expectations for improvement{agreement}. Plan to check back {followup}.'],
-  customer:['Discussed {keywords} with {name}. Reviewed recent customer interactions and identified opportunities to strengthen the experience{agreement}. Will revisit {followup}.','Coached {name} on {keywords}. Talked through specific examples and what a stronger approach looks like{agreement}. Following up {followup}.'],
-  development:['Connected with {name} about {keywords}. Discussed progress and identified next steps for continued growth{agreement}. Will check in {followup}.','Had a development conversation with {name} focused on {keywords}. Recognized recent progress and explored what to focus on next{agreement}. Revisiting {followup}.'],
-  engagement:['Checked in with {name} regarding {keywords}. Listened to their perspective and discussed how to support them going forward{agreement}. Following up {followup}.','Connected with {name} on {keywords}. Gauged how they are feeling and explored ways to keep momentum positive{agreement}. Will revisit {followup}.'],
-  performance:['Discussed {keywords} with {name}. Reviewed current performance and identified specific areas to focus on for improvement{agreement}. Will follow up {followup}.','Coached {name} on {keywords}. Looked at recent results and set targeted goals for the near term{agreement}. Checking back {followup}.']
+  accountability:[
+    'Spoke with {name} regarding {keywords}. Discussed specific expectations around {area} and how it directly impacts team operations and morale. Reviewed recent instances and patterns. {name} acknowledged the feedback{agreement}. A clear action plan was established with measurable goals. Will follow up {followup} to assess progress and provide additional support if needed.',
+    'Had a focused coaching conversation with {name} about {keywords}. Walked through specific recent examples and connected them to broader team expectations. Discussed the root causes behind current patterns and brainstormed practical solutions together{agreement}. Set a concrete timeline for improvement with check-in milestones. Plan to revisit {followup} and evaluate whether adjustments are holding.',
+    'Pulled {name} aside for a direct conversation about {keywords}. Laid out the specific concern with examples from recent shifts, explained the downstream effect on the team, and asked for their perspective. {name} was receptive to the feedback{agreement}. Agreed on specific next steps and accountability measures. Will check back {followup} to see if the changes are sticking.'
+  ],
+  customer:[
+    'Discussed {keywords} with {name}. Reviewed specific recent customer interactions and identified concrete opportunities to elevate the experience. Talked through what strong engagement looks like at each stage of the interaction and how to read customer signals more effectively{agreement}. Outlined specific techniques to practice on the next several shifts. Will revisit {followup} to review progress and coach on any new situations.',
+    'Coached {name} on {keywords}. Walked through real examples from recent shifts — what went well and where there were missed opportunities. Discussed the difference between transactional and consultative approaches and how to make customers feel genuinely heard{agreement}. Set a goal to apply specific techniques this week. Following up {followup} to debrief on how it went.',
+    'Had a detailed conversation with {name} about {keywords}. Pulled specific customer feedback and used it as a coaching anchor. Discussed how to personalize the experience, ask better discovery questions, and handle objections with empathy{agreement}. Will shadow a few interactions next shift and follow up {followup} with targeted feedback.'
+  ],
+  development:[
+    'Connected with {name} about {keywords}. Discussed where they are in their growth journey, what skills they want to sharpen, and what specific opportunities exist in the near term. Identified concrete next steps — including stretch assignments and learning resources — to accelerate their development{agreement}. Will check in {followup} to track progress and adjust the plan.',
+    'Had a meaningful development conversation with {name} focused on {keywords}. Recognized specific recent wins and contributions that demonstrate growth. Explored what challenges are stretching them right now and how to lean into those productively{agreement}. Mapped out a short-term development plan with clear milestones. Revisiting {followup} to keep momentum going.',
+    'Sat down with {name} to discuss {keywords} and their career trajectory. Talked through strengths they should continue leveraging and areas where focused effort will unlock the next level. Discussed specific actions — mentorship, cross-training, and project ownership — that would build their skillset{agreement}. Following up {followup} to review progress on action items.'
+  ],
+  engagement:[
+    'Checked in with {name} regarding {keywords}. Took time to genuinely listen to their perspective on how things are going — workload, team dynamics, and overall satisfaction. Discussed specific ways to keep them engaged and supported, including workload adjustments and recognition opportunities{agreement}. Following up {followup} to make sure things are trending in the right direction.',
+    'Connected with {name} on {keywords}. Opened up space for an honest conversation about how they are feeling on the team. Explored what is energizing them and what is draining them right now. Discussed practical changes we can make together to improve their day-to-day experience{agreement}. Will revisit {followup} to see how things are going and continue the dialogue.',
+    'Had a one-on-one with {name} about {keywords}. Wanted to get a genuine pulse check beyond surface level. Discussed team morale, workload balance, and what support looks like for them. Identified a few specific adjustments we can make immediately{agreement}. Checking back {followup} to maintain open communication and follow through on commitments.'
+  ],
+  performance:[
+    'Discussed {keywords} with {name}. Reviewed current performance metrics and trends in detail, identifying specific areas where results are strong and where targeted improvement is needed. Talked through the gap between current performance and expectations, and co-developed an action plan with clear, measurable targets{agreement}. Will follow up {followup} to review progress against those targets and adjust the plan as needed.',
+    'Coached {name} on {keywords}. Went through recent results with specific data points and examples. Identified patterns in their approach that are either helping or holding them back. Worked together to set focused goals for the coming week with daily actions they can take to move the needle{agreement}. Checking back {followup} to debrief and celebrate any wins or course-correct.',
+    'Had a performance-focused conversation with {name} about {keywords}. Reviewed the numbers side by side and connected them to specific behaviors and habits. Discussed what top performers in similar roles do differently and how to adapt those practices. Set clear expectations with a realistic timeline{agreement}. Following up {followup} to track execution and provide ongoing coaching.'
+  ]
 };
 function detectKeywords(text) {
   const lower = text.toLowerCase(), matches = [];
@@ -227,7 +265,7 @@ function renderHistory() {
   const list=document.getElementById('historyList');
   if(filtered.length===0){list.innerHTML='<div class="empty-state">No entries yet</div>';return;}
   filtered.sort((a,b)=>new Date(b.date)-new Date(a.date));
-  list.innerHTML=filtered.map(entry=>'<div class="entry-card"><div class="entry-header"><span class="entry-name">'+escapeHtml(entry.name)+'</span><span class="entry-date">'+formatDate(entry.date)+'</span></div><div class="entry-topic">'+escapeHtml(entry.topic)+'</div><div class="entry-summary">'+escapeHtml(entry.summary)+'</div><button class="entry-delete" onclick="handleDelete(\''+entry.id+'\')">Delete</button></div>').join('');
+  list.innerHTML=filtered.map(entry=>'<div class="entry-card"><div class="entry-header"><span class="entry-name">'+escapeHtml(entry.name)+'</span><span class="entry-date">'+formatDate(entry.date)+'</span></div><div class="entry-topic">'+escapeHtml(entry.topic)+'</div>'+(entry.notes?'<div class="entry-notes">'+escapeHtml(entry.notes)+'</div>':'')+'<div class="entry-summary">'+escapeHtml(entry.summary)+'</div><button class="entry-delete" onclick="handleDelete(\''+entry.id+'\')">Delete</button></div>').join('');
 }
 async function handleDelete(id){if(!confirm('Delete this entry?'))return;await deleteEntryById(id);await refreshEntries();}
 async function refreshEntries(){entriesCache=await getEntries();updateCounter();renderHistory();}
@@ -239,6 +277,7 @@ document.querySelectorAll('.tab').forEach(tab=>{tab.addEventListener('click',()=
   tab.classList.add('active');document.getElementById(tab.dataset.tab+'Tab').classList.add('active');
   if(tab.dataset.tab==='history')renderHistory();
   if(tab.dataset.tab==='recap')renderRecap();
+  if(tab.dataset.tab==='roster')renderRoster();
 });});
 // Generate
 document.getElementById('generateBtn').addEventListener('click',function(){
@@ -256,8 +295,9 @@ document.getElementById('coachForm').addEventListener('submit',async function(e)
   const name=document.getElementById('memberName').value.trim();
   const topic=document.getElementById('topic').value.trim();
   const summary=document.getElementById('summary').value.trim();
+  const notes=document.getElementById('roughNotes').value.trim();
   if(!name||!topic||!summary)return;
-  const entry={id:crypto.randomUUID(),name,topic,summary,date:new Date().toISOString()};
+  const entry={id:crypto.randomUUID(),name,topic,summary,notes,date:new Date().toISOString()};
   const btn=document.querySelector('.btn-save'); btn.textContent='Saving...'; btn.disabled=true;
   await saveEntry(entry);
   document.getElementById('coachForm').reset();
@@ -340,6 +380,49 @@ document.getElementById('copyBtn').addEventListener('click', function() {
     setTimeout(() => { btn.textContent = 'Copy to Clipboard'; btn.classList.remove('copied'); }, 1500);
   });
 });
+
+// === Roster ===
+let teamMembersCache = [];
+async function loadTeamMembersForRoster() {
+  try {
+    teamMembersCache = (await supabaseRequest('GET','team_members?order=name.asc')) || [];
+  } catch(e) { console.error('Failed to load roster:', e); }
+}
+function renderRoster() {
+  const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const rosterList = document.getElementById('rosterList');
+  const rosterSummary = document.getElementById('rosterSummary');
+  if (teamMembersCache.length === 0) {
+    rosterList.innerHTML = '<div class="empty-state">Loading roster...</div>';
+    loadTeamMembersForRoster().then(renderRoster);
+    return;
+  }
+  const rosterData = teamMembersCache.map(member => {
+    const memberEntries = entriesCache.filter(e => e.name === member.name);
+    const recentEntries = memberEntries.filter(e => new Date(e.date) >= thirtyDaysAgo);
+    const lastCoached = memberEntries.length > 0 ? memberEntries.reduce((latest, e) => new Date(e.date) > new Date(latest.date) ? e : latest) : null;
+    return { name: member.name, lastCoached, recentCount: recentEntries.length, coached: recentEntries.length > 0 };
+  });
+  const coachedCount = rosterData.filter(r => r.coached).length;
+  const notCoachedCount = rosterData.filter(r => !r.coached).length;
+  rosterSummary.innerHTML = '<strong>' + coachedCount + '</strong> coached in last 30 days · <strong style="color:var(--red)">' + notCoachedCount + '</strong> not yet coached · <strong>' + teamMembersCache.length + '</strong> total';
+  // Sort: not coached first, then by last coached date (oldest first)
+  rosterData.sort((a, b) => {
+    if (a.coached !== b.coached) return a.coached ? 1 : -1;
+    if (!a.lastCoached && !b.lastCoached) return a.name.localeCompare(b.name);
+    if (!a.lastCoached) return -1;
+    if (!b.lastCoached) return 1;
+    return new Date(a.lastCoached.date) - new Date(b.lastCoached.date);
+  });
+  rosterList.innerHTML = rosterData.map(r => {
+    const cls = r.coached ? 'roster-coached' : 'roster-not-coached';
+    const badge = r.coached
+      ? '<span class="roster-badge coached">' + r.recentCount + 'x this month</span>'
+      : '<span class="roster-badge overdue">Not coached</span>';
+    const dateStr = r.lastCoached ? formatDate(r.lastCoached.date) : 'Never';
+    return '<div class="roster-row ' + cls + '"><div><div class="roster-name">' + escapeHtml(r.name) + '</div><div class="roster-date">Last: ' + dateStr + '</div></div><div>' + badge + '</div></div>';
+  }).join('');
+}
 </script>
 </body>
 </html>
