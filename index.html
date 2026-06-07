@@ -343,7 +343,8 @@ function buildRecapText(range) {
   entries.forEach(e => {
     text += '• ' + e.name + ' (' + formatDate(e.date) + ')\n';
     text += '  Topic: ' + e.topic + '\n';
-    text += '  ' + e.summary + '\n\n';
+    if (e.notes) text += '  Notes: ' + e.notes + '\n';
+    text += '  Summary: ' + e.summary + '\n\n';
   });
   return text.trim();
 }
@@ -358,7 +359,7 @@ function renderRecap() {
   else {
     entries.sort((a,b) => new Date(b.date) - new Date(a.date));
     entries.forEach(e => {
-      html += '<div class="recap-entry"><strong>'+escapeHtml(e.name)+'</strong> · '+formatDate(e.date)+'<br><span style="color:var(--accent)">'+escapeHtml(e.topic)+'</span><br>'+escapeHtml(e.summary)+'</div>';
+      html += '<div class="recap-entry"><strong>'+escapeHtml(e.name)+'</strong> · '+formatDate(e.date)+'<br><span style="color:var(--accent)">'+escapeHtml(e.topic)+'</span>'+(e.notes?'<br><span style="color:var(--text);font-style:italic">Notes: '+escapeHtml(e.notes)+'</span>':'')+'<br>'+escapeHtml(e.summary)+'</div>';
     });
   }
   document.getElementById('recapPreview').innerHTML = html;
