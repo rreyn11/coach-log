@@ -83,6 +83,19 @@ select { width: auto; padding: 8px 12px; font-size: 14px; }
 .roster-badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 10px; }
 .roster-badge.coached { background: rgba(52,199,89,0.15); color: var(--green); }
 .roster-badge.overdue { background: rgba(255,59,48,0.15); color: var(--red); }
+.floor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.floor-counter { font-size: 16px; font-weight: 700; }
+.floor-member-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.floor-chip { padding: 8px 14px; background: var(--surface); border: 1px solid transparent; border-radius: 20px; font-size: 14px; cursor: pointer; transition: all 0.2s; user-select: none; }
+.floor-chip.selected { background: rgba(0,122,255,0.15); border-color: var(--accent); color: var(--accent); }
+.floor-checklist { display: flex; flex-direction: column; gap: 10px; }
+.floor-item { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--surface); border-radius: var(--radius); cursor: pointer; transition: all 0.2s; }
+.floor-item.checked { opacity: 0.5; text-decoration: line-through; }
+.floor-item .floor-check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--text-secondary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; }
+.floor-item.checked .floor-check { background: var(--green); border-color: var(--green); }
+.floor-item.checked .floor-check::after { content: '✓'; color: white; font-size: 14px; font-weight: 700; }
+.floor-item .floor-item-name { font-size: 16px; font-weight: 500; }
+.hidden { display: none; }
   </style>
 </head>
 <body>
@@ -93,6 +106,7 @@ select { width: auto; padding: 8px 12px; font-size: 14px; }
     </header>
     <div class="tabs">
       <button class="tab active" data-tab="log">Log Entry</button>
+      <button class="tab" data-tab="floor">Floor</button>
       <button class="tab" data-tab="history">History</button>
       <button class="tab" data-tab="roster">Roster</button>
       <button class="tab" data-tab="recap">Recap</button>
@@ -122,6 +136,18 @@ select { width: auto; padding: 8px 12px; font-size: 14px; }
           <button type="submit" class="btn-save">Save Entry</button>
         </div>
       </form>
+    </section>
+    <section id="floorTab" class="tab-content">
+      <div class="floor-header">
+        <div class="floor-counter" id="floorCounter">0/0 connected</div>
+        <button class="btn-export" id="floorResetBtn">Reset List</button>
+      </div>
+      <div class="floor-pick" id="floorPick">
+        <label style="margin-bottom:10px;display:block">Select who you want to connect with today:</label>
+        <div id="floorMemberList" class="floor-member-list"></div>
+        <button class="btn-generate" id="floorStartBtn" style="margin-top:12px">Start Floor Walk</button>
+      </div>
+      <div class="floor-checklist hidden" id="floorChecklist"></div>
     </section>
     <section id="historyTab" class="tab-content">
       <div class="filter-row">
@@ -278,6 +304,7 @@ document.querySelectorAll('.tab').forEach(tab=>{tab.addEventListener('click',()=
   if(tab.dataset.tab==='history')renderHistory();
   if(tab.dataset.tab==='recap')renderRecap();
   if(tab.dataset.tab==='roster')renderRoster();
+  if(tab.dataset.tab==='floor')renderFloorPick();
 });});
 // Generate
 document.getElementById('generateBtn').addEventListener('click',function(){
@@ -424,6 +451,74 @@ function renderRoster() {
     return '<div class="roster-row ' + cls + '"><div><div class="roster-name">' + escapeHtml(r.name) + '</div><div class="roster-date">Last: ' + dateStr + '</div></div><div>' + badge + '</div></div>';
   }).join('');
 }
+
+// === Floor Walk ===
+const FLOOR_KEY = 'coach_floor_' + new Date().toISOString().slice(0,10);
+function getFloorState() {
+  const saved = localStorage.getItem(FLOOR_KEY);
+  return saved ? JSON.parse(saved) : null;
+}
+function saveFloorState(state) { localStorage.setItem(FLOOR_KEY, JSON.stringify(state)); }
+function updateFloorCounter(state) {
+  if (!state) return;
+  const checked = state.members.filter(m => m.checked).length;
+  const el = document.getElementById('floorCounter');
+  el.textContent = checked + '/' + state.members.length + ' connected';
+  el.style.color = checked === state.members.length ? 'var(--green)' : (checked > 0 ? 'var(--orange)' : 'var(--text)');
+}
+function renderFloorChecklist(state) {
+  const cl = document.getElementById('floorChecklist');
+  cl.classList.remove('hidden');
+  document.getElementById('floorPick').classList.add('hidden');
+  cl.innerHTML = state.members.map((m, i) =>
+    '<div class="floor-item' + (m.checked ? ' checked' : '') + '" data-idx="' + i + '"><div class="floor-check"></div><div class="floor-item-name">' + escapeHtml(m.name) + '</div></div>'
+  ).join('');
+  cl.querySelectorAll('.floor-item').forEach(item => {
+    item.addEventListener('click', function() {
+      const idx = parseInt(this.dataset.idx);
+      state.members[idx].checked = !state.members[idx].checked;
+      saveFloorState(state);
+      renderFloorChecklist(state);
+      updateFloorCounter(state);
+    });
+  });
+  updateFloorCounter(state);
+}
+function renderFloorPick() {
+  const state = getFloorState();
+  if (state) { renderFloorChecklist(state); return; }
+  document.getElementById('floorPick').classList.remove('hidden');
+  document.getElementById('floorChecklist').classList.add('hidden');
+  const list = document.getElementById('floorMemberList');
+  if (teamMembersCache.length === 0) {
+    list.innerHTML = '<span style="color:var(--text-secondary)">Loading team...</span>';
+    loadTeamMembersForRoster().then(renderFloorPick);
+    return;
+  }
+  list.innerHTML = teamMembersCache.map(m =>
+    '<div class="floor-chip" data-name="' + escapeHtml(m.name) + '">' + escapeHtml(m.name) + '</div>'
+  ).join('');
+  list.querySelectorAll('.floor-chip').forEach(chip => {
+    chip.addEventListener('click', function() { this.classList.toggle('selected'); });
+  });
+}
+document.getElementById('floorStartBtn').addEventListener('click', function() {
+  const selected = [...document.querySelectorAll('.floor-chip.selected')].map(c => ({name: c.dataset.name, checked: false}));
+  if (selected.length === 0) { alert('Select at least one team member'); return; }
+  const state = { date: new Date().toISOString().slice(0,10), members: selected };
+  saveFloorState(state);
+  renderFloorChecklist(state);
+  updateFloorCounter(state);
+});
+document.getElementById('floorResetBtn').addEventListener('click', function() {
+  if (!confirm('Reset today\'s floor list?')) return;
+  localStorage.removeItem(FLOOR_KEY);
+  document.getElementById('floorChecklist').classList.add('hidden');
+  document.getElementById('floorChecklist').innerHTML = '';
+  document.getElementById('floorCounter').textContent = '0/0 connected';
+  document.getElementById('floorCounter').style.color = 'var(--text)';
+  renderFloorPick();
+});
 </script>
 </body>
 </html>
